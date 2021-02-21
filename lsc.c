@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,13 +25,6 @@
 #define ISNUMCHAR(ch) (ISNUM(ch) || ((ch) > 0x60 && (ch) < 0x67) || \
 		((ch) > 0x40 && (ch) < 0x47))
 
-#define ERROR(str, filename, fileline, ...) \
-	printf("\033[1;97m%s:%d: \033[0m""%s"str"\n", \
-			filename, fileline, errstr, __VA_ARGS__)
-#define WARNING(str, filename, fileline, ...) \
-	printf("\033[1;97m%s:%d: \033[0m""%s"str"\n", \
-			filename, fileline, warnstr, __VA_ARGS__)
-
 typedef enum {
 	TokenNull,
 	TokenNumber, TokenIdentifier, TokenString,
@@ -47,9 +41,12 @@ typedef struct {
 static int getsyscallbyname(char *name);
 static void usage(void);
 
+static void error(const char *fmt, const char *filename,
+                  const char *line, int fileline, int filecol, ...);
+static void warning(const char *fmt, const char *filename,
+                    const char *line, int fileline, int filecol, ...);
+
 char *argv0;
-const char *warnstr = "\033[1;33mwarning: \033[0m";
-const char *errstr = "\033[1;31merror: \033[0m";
 
 static int
 getsyscallbyname(char *name)
@@ -99,6 +96,9 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lineno)
 					TokenComma;
 				type = TokenNull;
 				j = -1;
+			} else {
+				error("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
+						"<stdin>", input, lineno, i + 1, ch, ch & 0xff);
 			}
 		} else {
 			if ((type == TokenNumber     && !ISNUMCHAR(ch))
@@ -124,6 +124,37 @@ usage(void)
 	die("usage: %s", argv0);
 }
 
+static void
+error(const char *fmt, const char *filename, const char *line,
+      int fileline, int filecol, ...)
+{
+	va_list ap;
+	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;31merror: \033[0m",
+			filename, fileline, filecol);
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
+			line[strlen(line) - 1] != '\n' ? '\n' : 0);
+}
+
+static void
+warning(const char *fmt, const char *filename, const char *line,
+        int fileline, int filecol, ...)
+{
+	va_list ap;
+	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;33mwarning: \033[0m",
+			filename, fileline, filecol);
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	fprintf(stderr, "\n% 5d | %s", line);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -139,7 +170,6 @@ main(int argc, char *argv[])
 	} ARGEND
 
 	for (rb = lindex = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
-		write(1, buffer, rb);
 		parseline(buffer, rb, rbuf, BUFSIZ, lindex + 1);
 	}
 }
