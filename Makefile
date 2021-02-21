@@ -12,7 +12,7 @@ options:
 	@echo "CC       = ${CC}"
 
 .c.o:
-	${CC} -c ${CFLAGS} ${CPPFLAGS} $<
+	${CC} -c -ggdb ${CFLAGS} ${CPPFLAGS} $<
 
 ${OBJ}: config.mk
 
