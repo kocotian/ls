@@ -39,6 +39,8 @@ typedef struct {
 } Token;
 
 static int getsyscallbyname(char *name);
+static ssize_t parseline(char *input, size_t ilen, char *output, size_t olen,
+                         int lnum, char *filename);
 static void usage(void);
 
 static void error(const char *fmt, const char *filename,
@@ -59,21 +61,14 @@ getsyscallbyname(char *name)
 }
 
 static ssize_t
-parseline(char *input, size_t ilen, char *output, size_t olen, int lineno)
+parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *filename)
 {
-	/* === Types ===
-	   TokenNull,
-	   TokenNumber, TokenIdentifier, TokenString,
-	   TokenComma,
-	   TokenParenthesis, TokenBracket */
-
 	TokenType type;
 	size_t i, j, li, tokiter;
 	char ch, *valstart;
 	*output = '\0';
 	Token *tokens = malloc(sizeof(Token) * 128);
 
-	valstart = NULL;
 	for (tokiter = i = j = li = type = 0; i < ilen; ++i, ++j, ++li) {
 		ch = input[i];
 		if (!type) {
@@ -96,21 +91,18 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lineno)
 					TokenComma;
 				type = TokenNull;
 				j = -1;
-			} else {
+			} else
 				error("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
-						"<stdin>", input, lineno, i + 1, ch, ch & 0xff);
-			}
-		} else {
-			if ((type == TokenNumber     && !ISNUMCHAR(ch))
-			||  (type == TokenIdentifier && !ISIDENCHAR(ch))
-			||  (type == TokenString     && ISQUOT(ch))) {
-				tokens[tokiter].val = valstart;
-				tokens[tokiter].len = j;
-				tokens[tokiter++].type = type;
-				if (type != TokenString) --i;
-				type = TokenNull;
-				j = -1;
-			}
+						filename, input, lnum, i + 1, ch, ch & 0xff);
+		} else if ((type == TokenNumber     && !ISNUMCHAR(ch))
+		|| (type == TokenIdentifier && !ISIDENCHAR(ch))
+		|| (type == TokenString     && ISQUOT(ch))) {
+			tokens[tokiter].val = valstart;
+			tokens[tokiter].len = j;
+			tokens[tokiter++].type = type;
+			if (type != TokenString) --i;
+			type = TokenNull;
+			j = -1;
 		}
 	}
 
@@ -138,6 +130,8 @@ error(const char *fmt, const char *filename, const char *line,
 
 	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
 			line[strlen(line) - 1] != '\n' ? '\n' : 0);
+
+	exit(1);
 }
 
 static void
@@ -170,6 +164,7 @@ main(int argc, char *argv[])
 	} ARGEND
 
 	for (rb = lindex = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
-		parseline(buffer, rb, rbuf, BUFSIZ, lindex + 1);
+		parseline(buffer, rb, rbuf, BUFSIZ,
+				lindex + 1, "<stdin>");
 	}
 }
