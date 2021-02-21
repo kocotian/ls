@@ -98,13 +98,16 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *f
 		|| (type == TokenIdentifier && !ISIDENCHAR(ch))
 		|| (type == TokenString     && ISQUOT(ch))) {
 			tokens[tokiter].val = valstart;
-			tokens[tokiter].len = j;
+			tokens[tokiter].len = j + (type == TokenString ? 1 : 0);
 			tokens[tokiter++].type = type;
 			if (type != TokenString) --i;
 			type = TokenNull;
 			j = -1;
 		}
 	}
+
+	for (j = 0; j < tokiter; ++j)
+		write(1, tokens[j].val, tokens[j].len);
 
 	free(tokens);
 	return i;
