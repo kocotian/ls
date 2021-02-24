@@ -15,10 +15,13 @@
 #define ISNUM(ch) ((ch) > 0x2f && (ch) < 0x3a)
 #define ISUND(ch) ((ch) == 0x5f)
 #define ISPAR(ch) ((ch) == 0x28 || (ch) == 0x29)
-#define ISBRC(ch) ((ch) == 0x5b || (ch) == 0x5d)
+#define ISBRK(ch) ((ch) == 0x5b || (ch) == 0x5d)
+#define ISBRC(ch) ((ch) == 0x7b || (ch) == 0x7d)
 #define ISQUOT(ch) ((ch) == 0x22)
 #define ISCOMM(ch) ((ch) == 0x2c)
+#define ISEQUSIGN(ch) ((ch) == 0x3d)
 #define ISIGNORABLE(ch) ((ch) > 0x00 && (ch) < 0x21)
+#define ISLINECOMMSTARTCHAR(ch) ((ch) == 0x3b || (ch) == 0x23)
 
 #define ISIDENSTARTCHAR(ch) (ISUND(ch) || ISLOW(ch) || ISUPP(ch))
 #define ISIDENCHAR(ch) (ISIDENSTARTCHAR(ch) || ISNUM(ch))
@@ -29,7 +32,8 @@ typedef enum {
 	TokenNull,
 	TokenNumber, TokenIdentifier, TokenString,
 	TokenComma,
-	TokenParenthesis, TokenBracket
+	TokenParenthesis, TokenBracket, TokenBrace,
+	TokenEqualSign
 } TokenType;
 
 typedef struct {
@@ -43,9 +47,7 @@ static ssize_t parseline(char *input, size_t ilen, char *output, size_t olen,
                          int lnum, char *filename);
 static void usage(void);
 
-static void error(const char *fmt, const char *filename,
-                  const char *line, int fileline, int filecol, ...);
-static void warning(const char *fmt, const char *filename,
+static void errwarn(const char *fmt, int iserror, const char *filename,
                     const char *line, int fileline, int filecol, ...);
 
 char *argv0;
@@ -79,24 +81,28 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *f
 				type = TokenIdentifier;
 			else if (ISQUOT(ch))
 				type = TokenString;
-			else if (ISIGNORABLE(ch)) {
+			else if (ISLINECOMMSTARTCHAR(ch)) {
+				break;
+			} else if (ISIGNORABLE(ch)) {
 				--j;
 				continue;
-			} else if (ISPAR(ch) || ISBRC(ch) || ISCOMM(ch)) {
+			} else if (ISPAR(ch) || ISBRK(ch) || ISBRC(ch) || ISCOMM(ch) || ISEQUSIGN(ch)) {
 				tokens[tokiter].val = valstart;
 				tokens[tokiter].len = j + 1;
 				tokens[tokiter++].type =
 					ISPAR(ch) ? TokenParenthesis :
-					ISBRC(ch) ? TokenBracket :
-					TokenComma;
+					ISBRK(ch) ? TokenBracket :
+					ISBRC(ch) ? TokenBrace :
+					ISCOMM(ch) ? TokenComma :
+					TokenEqualSign;
 				type = TokenNull;
 				j = -1;
 			} else
-				error("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
-						filename, input, lnum, i + 1, ch, ch & 0xff);
-		} else if ((type == TokenNumber     && !ISNUMCHAR(ch))
+				errwarn("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
+						1, filename, input, lnum, i + 1, ch, ch & 0xff);
+		} else if ((type == TokenNumber && !ISNUMCHAR(ch))
 		|| (type == TokenIdentifier && !ISIDENCHAR(ch))
-		|| (type == TokenString     && ISQUOT(ch))) {
+		|| (type == TokenString && ISQUOT(ch))) {
 			tokens[tokiter].val = valstart;
 			tokens[tokiter].len = j + (type == TokenString ? 1 : 0);
 			tokens[tokiter++].type = type;
@@ -106,8 +112,12 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *f
 		}
 	}
 
-	for (j = 0; j < tokiter; ++j)
+	const char space = ' ';
+	for (j = 0; j < tokiter; ++j) {
 		write(1, tokens[j].val, tokens[j].len);
+		write(1, &space, 1);
+	}
+	puts("");
 
 	free(tokens);
 	return i;
@@ -120,12 +130,12 @@ usage(void)
 }
 
 static void
-error(const char *fmt, const char *filename, const char *line,
+errwarn(const char *fmt, int iserror, const char *filename, const char *line,
       int fileline, int filecol, ...)
 {
 	va_list ap;
-	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;31merror: \033[0m",
-			filename, fileline, filecol);
+	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;3%s: \033[0m",
+			filename, fileline, filecol, iserror ? "1merror" : "3mwarning");
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
@@ -134,28 +144,13 @@ error(const char *fmt, const char *filename, const char *line,
 	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
 			line[strlen(line) - 1] != '\n' ? '\n' : 0);
 
-	exit(1);
-}
-
-static void
-warning(const char *fmt, const char *filename, const char *line,
-        int fileline, int filecol, ...)
-{
-	va_list ap;
-	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;33mwarning: \033[0m",
-			filename, fileline, filecol);
-
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-
-	fprintf(stderr, "\n% 5d | %s", line);
+	if (iserror) exit(1);
 }
 
 int
 main(int argc, char *argv[])
 {
-	char buffer[BUFSIZ], rbuf[BUFSIZ], cbuf[BUFSIZ];
+	char buffer[BUFSIZ], tmpbuf[BUFSIZ];
 	ssize_t rb;
 	int lindex;
 
@@ -167,7 +162,7 @@ main(int argc, char *argv[])
 	} ARGEND
 
 	for (rb = lindex = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
-		parseline(buffer, rb, rbuf, BUFSIZ,
+		parseline(buffer, rb, tmpbuf, BUFSIZ,
 				lindex + 1, "<stdin>");
 	}
 }
