@@ -166,22 +166,23 @@ main(int argc, char *argv[])
 		const char space = ' ';
 		int j;
 		for (j = 0; j < tokiter; ++j) {
-			write(1, contents + tokens[j].off, tokens[j].len);
-			write(1, &space, 1);
+			write(2, contents + tokens[j].off, tokens[j].len);
+			write(2, &space, 1);
 		}
-		write(1, "\n", 1);
+		write(2, "\n", 1);
 	}
 
 
 	output = malloc(outsiz = snprintf(buffer, BUFSIZ, "BITS 64\n"
-				"section .text\nglobal _start\n_start:\n\t"
-				"call main\n\tmov rax, 60\n\tmov rdi, 0\n\tsyscall\n") + 1);
+				"section .text\nglobal _start\n_start:\n"
+				"\tcall main\n\tmov rax, 60\n\tmov rdi, 0\n"
+				"\tsyscall\n\tret\n") + 1);
 
 	memcpy(output, buffer, outsiz);
 	memcpy(output + outsiz, "", 1);
 
 	g_main(tokens, tokiter);
-	write(1, output, outsiz);
+	write(1, output, outsiz - 1);
 
 	free(output);
 	free(tokens);

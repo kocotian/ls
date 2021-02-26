@@ -3,8 +3,9 @@
 
 #include "grammar.h"
 
-extern char *contents;
-extern char *output;
+extern char    *contents;
+extern char    *output;
+extern size_t   outsiz;
 
 static char *
 g_typetostr(TokenType type)
@@ -104,9 +105,13 @@ g_statement(Token *tokens, size_t toksize)
 size_t
 g_function(Token *tokens, size_t toksize)
 {
-	size_t i;
+	char *func_name;
+	char buffer[BUFSIZ];
+
+	size_t i, rb;
 	i = 0;
 	g_expecttype(tokens[i++], TokenIdentifier);
+	func_name = strndup(contents + tokens[i - 1].off, tokens[i - 1].len);
 	g_expecttype(tokens[i], TokenOpeningParenthesis);
 	if (tokens[i + 1].type == TokenKeyword
 	&& !strncmp(contents + tokens[i + 1].off, "void", 4))
@@ -116,7 +121,17 @@ g_function(Token *tokens, size_t toksize)
 		g_expecttype(tokens[i++], TokenIdentifier);
 	} while (tokens[i].type == TokenComma);
 	g_expecttype(tokens[i++], TokenClosingParenthesis);
+
+	rb = snprintf(buffer, BUFSIZ, "%s:\n", func_name);
+	output = realloc(output, outsiz += rb);
+	strcat(output, buffer);
+	free(func_name);
+
 	i += g_statement(tokens + i, toksize - i);
+
+	rb = snprintf(buffer, BUFSIZ, "\tret\n");
+	output = realloc(output, outsiz += rb);
+	strcat(output, buffer);
 
 	return ++i;
 }
