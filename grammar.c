@@ -17,7 +17,7 @@ g_expecttype(Token token, TokenType type)
 {
 	if (token.type != type)
 		errwarn("expected \033[1m%s\033[0m, got \033[1m%s\033[0m", 1,
-				g_typetostr(type), g_typetostr(token.type));
+				token, g_typetostr(type), g_typetostr(token.type));
 	return 0;
 }
 
@@ -30,6 +30,9 @@ g_statement(Token *tokens, size_t toksize)
 		++i;
 		while (tokens[i].type != TokenBrace && i < toksize);
 			g_statement(tokens + i, toksize - i); ++i;
+	} else {
+		errwarn("unexpected token \033[1m%s\033[0m, in place of a statement", 1,
+				tokens[i], g_typetostr(tokens[i].type));
 	}
 }
 
@@ -40,7 +43,7 @@ g_function(Token *tokens, size_t toksize)
 	i = 0;
 	fputs("identifier\n", stderr);
 	g_expecttype(tokens[i++], TokenIdentifier);
-	fputs("parenthesis\n", stderr);
+	fputs("parenthesis (opening)\n", stderr);
 	g_expecttype(tokens[i], TokenParenthesis);
 	fputs("loop:\n", stderr);
 	do {
@@ -48,9 +51,10 @@ g_function(Token *tokens, size_t toksize)
 		fputs("\tidentifier\n", stderr);
 		g_expecttype(tokens[i++], TokenIdentifier);
 	} while (tokens[i].type == TokenComma);
-	fputs("parenthesis\n", stderr);
+	fputs("parenthesis (closing)\n", stderr);
 	g_expecttype(tokens[i++], TokenParenthesis);
 	g_statement(tokens + i, toksize - i);
+	++i;
 	return i;
 }
 

@@ -20,7 +20,7 @@ lsc: ${OBJ} lsc.h
 	${CC} -o $@ ${OBJ}
 
 clean:
-	rm -f lsc ${OBJ}
+	rm -f lsc ${OBJ} tokentype.c tokentype.h
 
 grammar.c: tokentype.c
 

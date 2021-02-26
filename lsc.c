@@ -59,6 +59,9 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 			*tokens = realloc(*tokens, sizeof(Token) * (*toksiz += 128));
 		ch = input[i];
 		if (!type) {
+			(*tokens)[*tokiter].file = filename;
+			(*tokens)[*tokiter].line = fileline;
+			(*tokens)[*tokiter].col = valstart - off + 1;
 			valstart = off + i;
 			if (ISNUM(ch))
 				type = TokenNumber;
@@ -72,9 +75,6 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 				--j;
 				continue;
 			} else if (ISPAR(ch) || ISBRK(ch) || ISBRC(ch) || ISCOMM(ch) || ISEQUSIGN(ch)) {
-				(*tokens)[*tokiter].file = filename;
-				(*tokens)[*tokiter].line = fileline;
-				(*tokens)[*tokiter].col = valstart - off + 1;
 				(*tokens)[*tokiter].off = valstart;
 				(*tokens)[*tokiter].len = j + 1;
 				(*tokens)[(*tokiter)++].type =
@@ -87,7 +87,7 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 				j = -1;
 			} else
 				errwarn("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
-						1, ch, ch & 0xff);
+						1, (*tokens)[*tokiter], ch, ch & 0xff);
 		} else if ((type == TokenNumber && !ISNUMCHAR(ch))
 		|| (type == TokenIdentifier && !ISIDENCHAR(ch))
 		|| (type == TokenString && ISQUOT(ch))) {
@@ -150,7 +150,6 @@ main(int argc, char *argv[])
 		write(1, "\n", 1);
 	}
 
-	printf("tokiter: %d\n", tokiter);
 	g_main(tokens, tokiter);
 
 	free(tokens);

@@ -2,7 +2,6 @@
 #define _LSC_H
 
 #include "tokentype.h"
-#include "util.h"
 
 typedef struct {
 	short line, col;
@@ -10,6 +9,8 @@ typedef struct {
 	size_t off, len;
 	TokenType type;
 } Token;
+
+#include "util.h"
 
 static int
 getsyscallbyname(char *name);
