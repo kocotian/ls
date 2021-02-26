@@ -26,6 +26,18 @@ g_expecttype(Token token, TokenType type)
 }
 
 size_t
+g_expression(Token *tokens, size_t toksize)
+{
+	size_t i;
+	i = 0;
+
+	/* temporarily, expression can be a number only; TODO */
+	g_expecttype(tokens[i++], TokenNumber);
+
+	return i;
+}
+
+size_t
 g_statement(Token *tokens, size_t toksize)
 {
 	size_t i;
@@ -33,14 +45,45 @@ g_statement(Token *tokens, size_t toksize)
 	if (tokens[i].type == TokenOpeningBrace) { /* compound */
 		++i;
 		while (tokens[i].type != TokenClosingBrace && i < toksize) {
-			g_statement(tokens + i, toksize - i); ++i;
+			i += g_statement(tokens + i, toksize - i); ++i;
 		}
 	} else if (tokens[i].type == TokenKeyword) {
 		if        (!strncmp(contents + tokens[i].off, "if",     2)) { /* conditional */
+			g_expecttype(tokens[++i], TokenOpeningParenthesis);
+			++i;
+			i += g_expression(tokens + i, toksize - i);
+			g_expecttype(tokens[i++], TokenClosingParenthesis);
+			i += g_statement(tokens + i, toksize - i);
 		} else if (!strncmp(contents + tokens[i].off, "while",  5)) { /* loop */
+			g_expecttype(tokens[++i], TokenOpeningParenthesis);
+			++i;
+			i += g_expression(tokens + i, toksize - i);
+			g_expecttype(tokens[i++], TokenClosingParenthesis);
+			i += g_statement(tokens + i, toksize - i);
 		} else if (!strncmp(contents + tokens[i].off, "return", 6)) { /* return */
+			++i;
+			i += g_expression(tokens + i, toksize - i);
+			g_expecttype(tokens[i], TokenSemicolon);
 		} else if (!strncmp(contents + tokens[i].off, "var",    3)) { /* variable */
+			do {
+				++i;
+				g_expecttype(tokens[i++], TokenIdentifier);
+				if (tokens[i].type == TokenEqualSign) {
+					++i;
+					i += g_expression(tokens + i, toksize - i);
+				}
+			} while (tokens[i].type == TokenComma);
+			g_expecttype(tokens[i], TokenSemicolon);
 		} else if (!strncmp(contents + tokens[i].off, "const",  5)) { /* constant */
+			do {
+				++i;
+				g_expecttype(tokens[i++], TokenIdentifier);
+				if (tokens[i].type == TokenEqualSign) {
+					++i;
+					i += g_expression(tokens + i, toksize - i);
+				}
+			} while (tokens[i].type == TokenComma);
+			g_expecttype(tokens[i], TokenSemicolon);
 		} else {
 			char buf[128];
 			snprintf(buf, tokens[i].len + 1, "%s", contents + tokens[i].off);
@@ -49,10 +92,13 @@ g_statement(Token *tokens, size_t toksize)
 		}
 	} else if (!strncmp(contents + tokens[i].off, "void", 4)) { /* expression */
 	} else if (tokens[i].type == TokenSemicolon) { /* noop */
+		++i;
 	} else {
-		errwarn("unexpected token \033[1m%s\033[0m, in place of a statement", 1,
-				tokens[i], g_typetostr(tokens[i].type));
+		i += g_expression(tokens + i, toksize - i);
+		g_expecttype(tokens[i], TokenSemicolon);
 	}
+
+	return i;
 }
 
 size_t
@@ -60,24 +106,19 @@ g_function(Token *tokens, size_t toksize)
 {
 	size_t i;
 	i = 0;
-	fputs("identifier\n", stderr);
 	g_expecttype(tokens[i++], TokenIdentifier);
-	fputs("parenthesis (opening)\n", stderr);
 	g_expecttype(tokens[i], TokenOpeningParenthesis);
-	fputs("loop:\n", stderr);
 	if (tokens[i + 1].type == TokenKeyword
 	&& !strncmp(contents + tokens[i + 1].off, "void", 4))
 		i += 2;
 	else do {
 		++i;
-		fputs("\tidentifier\n", stderr);
 		g_expecttype(tokens[i++], TokenIdentifier);
 	} while (tokens[i].type == TokenComma);
-	fputs("parenthesis (closing)\n", stderr);
 	g_expecttype(tokens[i++], TokenClosingParenthesis);
-	g_statement(tokens + i, toksize - i);
-	++i;
-	return i;
+	i += g_statement(tokens + i, toksize - i);
+
+	return ++i;
 }
 
 size_t
@@ -87,4 +128,6 @@ g_main(Token *tokens, size_t toksize)
 	for (i = 0; i < toksize; ++i) {
 		i += g_function(tokens + i, toksize - i);
 	}
+
+	return i;
 }
