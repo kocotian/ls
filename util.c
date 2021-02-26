@@ -60,3 +60,23 @@ nextline(int fd, char *buf, size_t size)
 	buf[count] = '\0';
 	return (ssize_t)count;
 }
+
+void
+errwarn(const char *fmt, int iserror, ...)
+{
+	extern const char *filename, *line;
+	extern int fileline;
+
+	va_list ap;
+	fprintf(stderr, "\033[0;1m%s:%d: \033[1;3%s: \033[0m",
+			filename, fileline, iserror ? "1merror" : "3mwarning");
+
+	va_start(ap, iserror);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
+			line[strlen(line) - 1] != '\n' ? '\n' : 0);
+
+	if (iserror) exit(1);
+}

@@ -1,0 +1,19 @@
+#!/bin/sh
+tokens="$(cat tokentypes |
+	sed -E 's/#.*//g;/^\s*$/d')"
+
+(
+echo -n "typedef enum { "
+echo "$tokens" | while read token
+do
+	echo -n "$token, "
+done
+echo -n "} TokenType;"
+) > tokentype.h
+
+(
+echo "$tokens" | while read token
+do
+	echo "	case $token: return \"${token##Token}\"; break;"
+done
+) > tokentype.c

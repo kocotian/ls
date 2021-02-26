@@ -1,5 +1,4 @@
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -28,29 +27,13 @@
 #define ISNUMCHAR(ch) (ISNUM(ch) || ((ch) > 0x60 && (ch) < 0x67) || \
 		((ch) > 0x40 && (ch) < 0x47))
 
-typedef enum {
-	TokenNull,
-	TokenNumber, TokenIdentifier, TokenString,
-	TokenComma,
-	TokenParenthesis, TokenBracket, TokenBrace,
-	TokenEqualSign
-} TokenType;
-
-typedef struct {
-	char *val;
-	size_t len;
-	TokenType type;
-} Token;
-
-static int getsyscallbyname(char *name);
-static ssize_t parseline(char *input, size_t ilen, char *output, size_t olen,
-                         int lnum, char *filename);
-static void usage(void);
-
-static void errwarn(const char *fmt, int iserror, const char *filename,
-                    const char *line, int fileline, int filecol, ...);
+#include "lsc.h"
+#include "grammar.h"
 
 char *argv0;
+
+char *filename, *line;
+int fileline;
 
 static int
 getsyscallbyname(char *name)
@@ -63,18 +46,20 @@ getsyscallbyname(char *name)
 }
 
 static ssize_t
-parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *filename)
+parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, size_t *tokiter)
 {
 	TokenType type;
-	size_t i, j, li, tokiter;
-	char ch, *valstart;
-	*output = '\0';
-	Token *tokens = malloc(sizeof(Token) * 128);
+	size_t i, j, li, valstart;
+	char ch;
 
-	for (tokiter = i = j = li = type = 0; i < ilen; ++i, ++j, ++li) {
+	line = input;
+
+	for (i = j = li = type = 0; i < ilen; ++i, ++j, ++li) {
+		if ((*tokiter >= (*toksiz - 1)))
+			*tokens = realloc(*tokens, sizeof(Token) * (*toksiz += 128));
 		ch = input[i];
 		if (!type) {
-			valstart = input + i;
+			valstart = off + i;
 			if (ISNUM(ch))
 				type = TokenNumber;
 			else if (ISIDENSTARTCHAR(ch))
@@ -87,9 +72,12 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *f
 				--j;
 				continue;
 			} else if (ISPAR(ch) || ISBRK(ch) || ISBRC(ch) || ISCOMM(ch) || ISEQUSIGN(ch)) {
-				tokens[tokiter].val = valstart;
-				tokens[tokiter].len = j + 1;
-				tokens[tokiter++].type =
+				(*tokens)[*tokiter].file = filename;
+				(*tokens)[*tokiter].line = fileline;
+				(*tokens)[*tokiter].col = valstart - off + 1;
+				(*tokens)[*tokiter].off = valstart;
+				(*tokens)[*tokiter].len = j + 1;
+				(*tokens)[(*tokiter)++].type =
 					ISPAR(ch) ? TokenParenthesis :
 					ISBRK(ch) ? TokenBracket :
 					ISBRC(ch) ? TokenBrace :
@@ -99,27 +87,22 @@ parseline(char *input, size_t ilen, char *output, size_t olen, int lnum, char *f
 				j = -1;
 			} else
 				errwarn("unexpected character: \033[1m%c \033[0m(\033[1m\\%o\033[0m)",
-						1, filename, input, lnum, i + 1, ch, ch & 0xff);
+						1, ch, ch & 0xff);
 		} else if ((type == TokenNumber && !ISNUMCHAR(ch))
 		|| (type == TokenIdentifier && !ISIDENCHAR(ch))
 		|| (type == TokenString && ISQUOT(ch))) {
-			tokens[tokiter].val = valstart;
-			tokens[tokiter].len = j + (type == TokenString ? 1 : 0);
-			tokens[tokiter++].type = type;
+			(*tokens)[*tokiter].file = filename;
+			(*tokens)[*tokiter].line = fileline;
+			(*tokens)[*tokiter].col = valstart - off + 1;
+			(*tokens)[*tokiter].off = valstart;
+			(*tokens)[*tokiter].len = j + (type == TokenString ? 1 : 0);
+			(*tokens)[(*tokiter)++].type = type;
 			if (type != TokenString) --i;
 			type = TokenNull;
 			j = -1;
 		}
 	}
 
-	const char space = ' ';
-	for (j = 0; j < tokiter; ++j) {
-		write(1, tokens[j].val, tokens[j].len);
-		write(1, &space, 1);
-	}
-	puts("");
-
-	free(tokens);
 	return i;
 }
 
@@ -129,40 +112,47 @@ usage(void)
 	die("usage: %s", argv0);
 }
 
-static void
-errwarn(const char *fmt, int iserror, const char *filename, const char *line,
-      int fileline, int filecol, ...)
-{
-	va_list ap;
-	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;3%s: \033[0m",
-			filename, fileline, filecol, iserror ? "1merror" : "3mwarning");
-
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-
-	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
-			line[strlen(line) - 1] != '\n' ? '\n' : 0);
-
-	if (iserror) exit(1);
-}
-
 int
 main(int argc, char *argv[])
 {
-	char buffer[BUFSIZ], tmpbuf[BUFSIZ];
+	char buffer[BUFSIZ], *contents;
 	ssize_t rb;
+	size_t csiz, toksiz, tokiter;
 	int lindex;
+	Token *tokens;
 
-	void *data, *bss, *text;
+	/* void *data, *bss, *text; */
 
 	ARGBEGIN {
 	default:
 		usage();
 	} ARGEND
 
-	for (rb = lindex = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
-		parseline(buffer, rb, tmpbuf, BUFSIZ,
-				lindex + 1, "<stdin>");
+	contents = malloc(csiz = 0);
+	tokens = malloc(sizeof(*tokens) * (toksiz = 128));
+
+	filename = "<stdin>";
+
+	for (rb = lindex = tokiter = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
+		contents = realloc(contents, csiz += rb);
+		memcpy(contents + (csiz - rb), buffer, rb);
+		fileline = lindex + 1;
+		parseline(contents + (csiz - rb), rb, (csiz - rb), &tokens, &toksiz, &tokiter);
 	}
+
+	{
+		const char space = ' ';
+		int j;
+		for (j = 0; j < tokiter; ++j) {
+			write(1, contents + tokens[j].off, tokens[j].len);
+			write(1, &space, 1);
+		}
+		write(1, "\n", 1);
+	}
+
+	printf("tokiter: %d\n", tokiter);
+	g_main(tokens, tokiter);
+
+	free(tokens);
+	free(contents);
 }

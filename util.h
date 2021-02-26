@@ -8,3 +8,4 @@
 void die(const char *fmt, ...);
 void *ecalloc(size_t nmemb, size_t size);
 ssize_t nextline(int fd, char *buf, size_t size);
+void errwarn(const char *fmt, int iserror, ...);

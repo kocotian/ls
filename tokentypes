@@ -1,0 +1,18 @@
+# first of all, null token
+TokenNull
+
+# basic tokens
+TokenNumber
+TokenIdentifier
+TokenString
+
+# "punctuation"
+TokenComma
+
+# any brackets
+TokenParenthesis
+TokenBracket
+TokenBrace
+
+# operators
+TokenEqualSign
