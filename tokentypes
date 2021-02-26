@@ -8,11 +8,15 @@ TokenString
 
 # "punctuation"
 TokenComma
+TokenSemicolon
 
 # any brackets
-TokenParenthesis
-TokenBracket
-TokenBrace
+TokenOpeningParenthesis
+TokenOpeningBracket
+TokenOpeningBrace
+TokenClosingParenthesis
+TokenClosingBracket
+TokenClosingBrace
 
 # operators
 TokenEqualSign

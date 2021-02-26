@@ -2,6 +2,8 @@
 
 #include "grammar.h"
 
+extern char *contents;
+
 static char *
 g_typetostr(TokenType type)
 {
@@ -26,10 +28,18 @@ g_statement(Token *tokens, size_t toksize)
 {
 	size_t i;
 	i = 0;
-	if (tokens[i].type == TokenBrace) {
+	if (tokens[i].type == TokenOpeningBrace) { /* compound */
 		++i;
-		while (tokens[i].type != TokenBrace && i < toksize);
+		while (tokens[i].type != TokenClosingBrace && i < toksize) {
 			g_statement(tokens + i, toksize - i); ++i;
+		}
+	} else if (0) { /* conditional */
+	} else if (0) { /* loop */
+	} else if (0) { /* return */
+	} else if (0) { /* variable */
+	} else if (0) { /* constant */
+	} else if (0) { /* expression */
+	} else if (0) { /* noop */
 	} else {
 		errwarn("unexpected token \033[1m%s\033[0m, in place of a statement", 1,
 				tokens[i], g_typetostr(tokens[i].type));
@@ -44,7 +54,7 @@ g_function(Token *tokens, size_t toksize)
 	fputs("identifier\n", stderr);
 	g_expecttype(tokens[i++], TokenIdentifier);
 	fputs("parenthesis (opening)\n", stderr);
-	g_expecttype(tokens[i], TokenParenthesis);
+	g_expecttype(tokens[i], TokenOpeningParenthesis);
 	fputs("loop:\n", stderr);
 	do {
 		++i;
@@ -52,7 +62,7 @@ g_function(Token *tokens, size_t toksize)
 		g_expecttype(tokens[i++], TokenIdentifier);
 	} while (tokens[i].type == TokenComma);
 	fputs("parenthesis (closing)\n", stderr);
-	g_expecttype(tokens[i++], TokenParenthesis);
+	g_expecttype(tokens[i++], TokenClosingParenthesis);
 	g_statement(tokens + i, toksize - i);
 	++i;
 	return i;

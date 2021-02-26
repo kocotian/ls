@@ -13,14 +13,19 @@
 #define ISUPP(ch) ((ch) > 0x40 && (ch) < 0x5b)
 #define ISNUM(ch) ((ch) > 0x2f && (ch) < 0x3a)
 #define ISUND(ch) ((ch) == 0x5f)
-#define ISPAR(ch) ((ch) == 0x28 || (ch) == 0x29)
-#define ISBRK(ch) ((ch) == 0x5b || (ch) == 0x5d)
-#define ISBRC(ch) ((ch) == 0x7b || (ch) == 0x7d)
+#define ISOPPAR(ch) ((ch) == 0x28)
+#define ISOPBRK(ch) ((ch) == 0x5b)
+#define ISOPBRC(ch) ((ch) == 0x7b)
+#define ISCLPAR(ch) ((ch) == 0x29)
+#define ISCLBRK(ch) ((ch) == 0x5d)
+#define ISCLBRC(ch) ((ch) == 0x7d)
 #define ISQUOT(ch) ((ch) == 0x22)
 #define ISCOMM(ch) ((ch) == 0x2c)
 #define ISEQUSIGN(ch) ((ch) == 0x3d)
+#define ISSEMICOLON(ch) ((ch) == 0x3b)
+
 #define ISIGNORABLE(ch) ((ch) > 0x00 && (ch) < 0x21)
-#define ISLINECOMMSTARTCHAR(ch) ((ch) == 0x3b || (ch) == 0x23)
+#define ISLINECOMMSTARTCHAR(ch) ((ch) == 0x23)
 
 #define ISIDENSTARTCHAR(ch) (ISUND(ch) || ISLOW(ch) || ISUPP(ch))
 #define ISIDENCHAR(ch) (ISIDENSTARTCHAR(ch) || ISNUM(ch))
@@ -34,6 +39,8 @@ char *argv0;
 
 char *filename, *line;
 int fileline;
+
+char *contents;
 
 static int
 getsyscallbyname(char *name)
@@ -74,14 +81,20 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 			} else if (ISIGNORABLE(ch)) {
 				--j;
 				continue;
-			} else if (ISPAR(ch) || ISBRK(ch) || ISBRC(ch) || ISCOMM(ch) || ISEQUSIGN(ch)) {
+			} else if (ISOPPAR(ch) || ISOPBRK(ch) || ISOPBRC(ch)
+					|| ISCLPAR(ch) || ISCLBRK(ch) || ISCLBRC(ch)
+					|| ISCOMM(ch) || ISSEMICOLON(ch) || ISEQUSIGN(ch)) {
 				(*tokens)[*tokiter].off = valstart;
 				(*tokens)[*tokiter].len = j + 1;
 				(*tokens)[(*tokiter)++].type =
-					ISPAR(ch) ? TokenParenthesis :
-					ISBRK(ch) ? TokenBracket :
-					ISBRC(ch) ? TokenBrace :
+					ISOPPAR(ch) ? TokenOpeningParenthesis :
+					ISOPBRK(ch) ? TokenOpeningBracket :
+					ISOPBRC(ch) ? TokenOpeningBrace :
+					ISCLPAR(ch) ? TokenClosingParenthesis :
+					ISCLBRK(ch) ? TokenClosingBracket :
+					ISCLBRC(ch) ? TokenClosingBrace :
 					ISCOMM(ch) ? TokenComma :
+					ISSEMICOLON(ch) ? TokenSemicolon :
 					TokenEqualSign;
 				type = TokenNull;
 				j = -1;
@@ -115,7 +128,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	char buffer[BUFSIZ], *contents;
+	char buffer[BUFSIZ];
 	ssize_t rb;
 	size_t csiz, toksiz, tokiter;
 	int lindex;
