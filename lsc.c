@@ -41,6 +41,8 @@ char *filename, *line;
 int fileline;
 
 char *contents;
+char *output;
+size_t outsiz;
 
 static int
 getsyscallbyname(char *name)
@@ -109,6 +111,13 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 			(*tokens)[*tokiter].col = valstart - off + 1;
 			(*tokens)[*tokiter].off = valstart;
 			(*tokens)[*tokiter].len = j + (type == TokenString ? 1 : 0);
+			if (!strncmp(input + (valstart - off), "if", 2)
+			||  !strncmp(input + (valstart - off), "while", 5)
+			||  !strncmp(input + (valstart - off), "return", 6)
+			||  !strncmp(input + (valstart - off), "var", 3)
+			||  !strncmp(input + (valstart - off), "const", 5)
+			||  !strncmp(input + (valstart - off), "void", 4))
+				type = TokenKeyword;
 			(*tokens)[(*tokiter)++].type = type;
 			if (type != TokenString) --i;
 			type = TokenNull;
@@ -163,8 +172,18 @@ main(int argc, char *argv[])
 		write(1, "\n", 1);
 	}
 
-	g_main(tokens, tokiter);
 
+	output = malloc(outsiz = snprintf(buffer, BUFSIZ, "BITS 64\n"
+				"section .text\nglobal _start\n_start:\n\t"
+				"call main\n\tmov rax, 60\n\tmov rdi, 0\n\tsyscall\n") + 1);
+
+	memcpy(output, buffer, outsiz);
+	memcpy(output + outsiz, "", 1);
+
+	g_main(tokens, tokiter);
+	write(1, output, outsiz);
+
+	free(output);
 	free(tokens);
 	free(contents);
 }

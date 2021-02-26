@@ -1,8 +1,10 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "grammar.h"
 
 extern char *contents;
+extern char *output;
 
 static char *
 g_typetostr(TokenType type)
@@ -33,13 +35,20 @@ g_statement(Token *tokens, size_t toksize)
 		while (tokens[i].type != TokenClosingBrace && i < toksize) {
 			g_statement(tokens + i, toksize - i); ++i;
 		}
-	} else if (0) { /* conditional */
-	} else if (0) { /* loop */
-	} else if (0) { /* return */
-	} else if (0) { /* variable */
-	} else if (0) { /* constant */
-	} else if (0) { /* expression */
-	} else if (0) { /* noop */
+	} else if (tokens[i].type == TokenKeyword) {
+		if        (!strncmp(contents + tokens[i].off, "if",     2)) { /* conditional */
+		} else if (!strncmp(contents + tokens[i].off, "while",  5)) { /* loop */
+		} else if (!strncmp(contents + tokens[i].off, "return", 6)) { /* return */
+		} else if (!strncmp(contents + tokens[i].off, "var",    3)) { /* variable */
+		} else if (!strncmp(contents + tokens[i].off, "const",  5)) { /* constant */
+		} else {
+			char buf[128];
+			snprintf(buf, tokens[i].len + 1, "%s", contents + tokens[i].off);
+			errwarn("unexpected keyword: \033[1m%s\033[0m", 1,
+					tokens[i], buf);
+		}
+	} else if (!strncmp(contents + tokens[i].off, "void", 4)) { /* expression */
+	} else if (tokens[i].type == TokenSemicolon) { /* noop */
 	} else {
 		errwarn("unexpected token \033[1m%s\033[0m, in place of a statement", 1,
 				tokens[i], g_typetostr(tokens[i].type));
@@ -56,7 +65,10 @@ g_function(Token *tokens, size_t toksize)
 	fputs("parenthesis (opening)\n", stderr);
 	g_expecttype(tokens[i], TokenOpeningParenthesis);
 	fputs("loop:\n", stderr);
-	do {
+	if (tokens[i + 1].type == TokenKeyword
+	&& !strncmp(contents + tokens[i + 1].off, "void", 4))
+		i += 2;
+	else do {
 		++i;
 		fputs("\tidentifier\n", stderr);
 		g_expecttype(tokens[i++], TokenIdentifier);

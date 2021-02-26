@@ -5,6 +5,7 @@ TokenNull
 TokenNumber
 TokenIdentifier
 TokenString
+TokenKeyword
 
 # "punctuation"
 TokenComma
