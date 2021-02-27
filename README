@@ -3,3 +3,27 @@ Linux Script
 
 Linux Script is a simple programming language
 based on Linux x86_64 system calls.
+
+This repository contains programs like:
+- LinuxScript Compiler (lsc) - for compiling LinuxScript Code
+
+LinuxScript Compiler is in very early stage for now, even
+cannot handle files. To use compiler you must give LS code to
+stdin, and assembly code will be printed to stdout. Also, nasm
+compiler is for now required to assemble compiled program.
+Example usage:
+$ lsc < program.ls > program.asm && nasm -felf64 -o program.o program.asm && \
+	ld -o program program.o && ./program
+
+Example program is shown below.
+
+A language syntax is similar to B or early C syntax.
+This is simple programs which do nothing, but it will compile
+using both LinuxScript compiler and C compiler (C compiler may generate
+warning):
+
+main(void)
+{
+}
+
+Compile with command shown above.

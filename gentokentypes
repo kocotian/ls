@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# See AUTHORS file for copyright details
+# and LICENSE file for license details.
+
 tokens="$(cat tokentypes |
 	sed -E 's/#.*//g;/^\s*$/d')"
 

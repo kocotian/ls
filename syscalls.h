@@ -1,3 +1,6 @@
+/* See AUTHORS file for copyright details
+   and LICENSE file for license details. */
+
 const char *syscalls[] = {
 "read",
 "write",

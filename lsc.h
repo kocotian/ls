@@ -1,3 +1,6 @@
+/* See AUTHORS file for copyright details
+   and LICENSE file for license details. */
+
 #ifndef _LSC_H
 #define _LSC_H
 

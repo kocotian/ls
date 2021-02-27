@@ -1,4 +1,13 @@
-#include <stdarg.h>
+/* See AUTHORS file for copyright details
+ * and LICENSE file for license details.
+ *
+ * LinuxScript compiler is a simple, small compiler
+ * for LinuxScript programming language wrote in
+ * a suckless way.
+ *
+ * Consult README for more information about a language
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
