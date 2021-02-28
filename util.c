@@ -61,22 +61,35 @@ nextline(int fd, char *buf, size_t size)
 	return (ssize_t)count;
 }
 
+ssize_t
+strchlen(const char *s, char c)
+{
+	char *p;
+	if ((p = strchr(s, c)) == NULL)
+		return strlen(s);
+	return p - s;
+}
+
 void
 errwarn(const char *fmt, int iserror, Token token, ...)
 {
-	extern const char *filename, *line;
-	extern int fileline;
+	extern char *contents;
+	char *buf;
 
 	va_list ap;
 	fprintf(stderr, "\033[0;1m%s:%d:%d: \033[1;3%s: \033[0m",
 			token.file, token.line, token.col, iserror ? "1merror" : "3mwarning");
 
-	va_start(ap, iserror);
+	va_start(ap, token);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 
-	fprintf(stderr, "\n% 5d | %s%c", fileline, line,
-			line[strlen(line) - 1] != '\n' ? '\n' : 0);
+	buf = malloc(strchlen((contents + token.off) - (token.col - 1), '\n') + 1);
+	snprintf(buf, strchlen((contents + token.off) - (token.col - 1), '\n') + 1,
+			"%s", (contents + token.off) - (token.col - 1));
+	fprintf(stderr, "\n% 5d | %s%c", token.line, buf,
+			contents[token.off + token.len] != '\n' ? '\n' : 0);
+	free(buf);
 
 	if (iserror) exit(1);
 }
