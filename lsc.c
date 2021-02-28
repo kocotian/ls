@@ -87,6 +87,7 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 					(*tokens)[*tokiter].len = ++j + 1;
 					(*tokens)[(*tokiter)++].type = TokenPlusEqualSign;
 				} else if (ISPLUSSIGN(input[i + 1])) { /* ++ */
+					++i;
 					(*tokens)[*tokiter].len = ++j + 1;
 					(*tokens)[(*tokiter)++].type = TokenIncrement;
 				} else {
@@ -103,6 +104,7 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 					(*tokens)[*tokiter].len = ++j + 1;
 					(*tokens)[(*tokiter)++].type = TokenMinusEqualSign;
 				} else if (ISMINUSSIGN(input[i + 1])) { /* -- */
+					++i;
 					(*tokens)[*tokiter].len = ++j + 1;
 					(*tokens)[(*tokiter)++].type = TokenDecrement;
 				} else {
@@ -157,16 +159,19 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 				continue;
 			} else if (ISOPPAR(ch) || ISOPBRK(ch) || ISOPBRC(ch)
 					|| ISCLPAR(ch) || ISCLBRK(ch) || ISCLBRC(ch)
-					|| ISCOMM(ch) || ISSEMICOLON(ch)) {
+					|| ISCOLON(ch) || ISSEMICOLON(ch)
+					|| ISCOMM(ch) || ISQUESTIONSIGN(ch)) {
 				(*tokens)[*tokiter].off = valstart;
 				(*tokens)[*tokiter].len = j + 1;
 				(*tokens)[(*tokiter)++].type =
+					ISQUESTIONSIGN(ch) ? TokenQuestionMark :
 					ISOPPAR(ch) ? TokenOpeningParenthesis :
 					ISOPBRK(ch) ? TokenOpeningBracket :
 					ISOPBRC(ch) ? TokenOpeningBrace :
 					ISCLPAR(ch) ? TokenClosingParenthesis :
 					ISCLBRK(ch) ? TokenClosingBracket :
 					ISCLBRC(ch) ? TokenClosingBrace :
+					ISCOLON(ch) ? TokenColon :
 					ISCOMM(ch) ? TokenComma :
 					TokenSemicolon;
 				type = TokenNull;

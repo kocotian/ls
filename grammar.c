@@ -35,7 +35,6 @@ g_expression(Token *tokens, size_t toksize)
 	size_t i;
 	i = 0;
 
-	/* temporarily, expression can be a number only; TODO */
 	if (tokens[i].type == TokenNumber) { /* number literal */
 		++i;
 	} else if (tokens[i].type == TokenString) { /* string literal */
@@ -43,10 +42,71 @@ g_expression(Token *tokens, size_t toksize)
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
 		++i;
 	} else if (tokens[i].type == TokenOpeningParenthesis) { /* (expression) */
+		++i;
 		i += g_expression(tokens + i, toksize - i);
 		g_expecttype(tokens[i++], TokenClosingParenthesis);
-	} else { /* expressions that starts with another expressions; TODO */
+	} else if (tokens[i].type == TokenMinusSign) { /* -sign-change */
+		++i;
 		i += g_expression(tokens + i, toksize - i);
+	} else if (tokens[i].type == TokenExclamationMark) { /* !negation */
+		++i;
+		i += g_expression(tokens + i, toksize - i);
+	} else if (tokens[i].type == TokenIncrement) { /* ++pre-incrementation */
+		++i;
+		i += g_expression(tokens + i, toksize - i);
+	} else if (tokens[i].type == TokenDecrement) { /* --pre-decrementation */
+		++i;
+		i += g_expression(tokens + i, toksize - i);
+	}
+
+	/* expressions that starts with another expressions; TODO */
+	{
+		/* i += g_expression(tokens + i, toksize - i); */
+		if (tokens[i].type == TokenQuestionMark) { /* ternary expression */
+			++i;
+			i += g_expression(tokens + i, toksize - i);
+			g_expecttype(tokens[i++], TokenColon);
+			i += g_expression(tokens + i, toksize - i);
+		} else if (tokens[i].type == TokenIncrement) { /* post-incrementation++ */
+			++i;
+		} else if (tokens[i].type == TokenDecrement) { /* post-decrementation-- */
+			++i;
+		} else if (tokens[i].type == TokenOpeningBracket) { /* indexing[expr] */
+			++i;
+			i += g_expression(tokens + i, toksize - i);
+			g_expecttype(tokens[i++], TokenClosingBracket);
+		} else if (tokens[i].type == TokenOpeningParenthesis) { /* function(expr) */
+			do {
+				++i;
+				i += g_expression(tokens + i, toksize - i);
+			} while (tokens[i].type == TokenComma);
+			g_expecttype(tokens[i++], TokenClosingParenthesis);
+		} else {
+			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
+				++i;
+			} else if (tokens[i].type == TokenPlusSign) { /* expr + expr */
+				++i;
+			} else if (tokens[i].type == TokenMinusSign) { /* expr - expr */
+				++i;
+			} else if (tokens[i].type == TokenPlusEqualSign) { /* expr += expr */
+				++i;
+			} else if (tokens[i].type == TokenMinusEqualSign) { /* expr -= expr */
+				++i;
+			} else if (tokens[i].type == TokenLogicalOrSign) { /* expr || expr */
+				++i;
+			} else if (tokens[i].type == TokenLogicalAndSign) { /* expr && expr */
+				++i;
+			} else if (tokens[i].type == TokenLogicalEquSign) { /* expr == expr */
+				++i;
+			} else if (tokens[i].type == TokenLogicalNotEquSign) { /* expr != expr */
+				++i;
+			} else if (tokens[i].type == TokenComma) { /* expr, expr */
+				++i;
+			} else {
+				return i;
+			}
+			i += g_expression(tokens + i, toksize - i);
+		}
 	}
 
 	return i;

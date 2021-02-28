@@ -12,6 +12,7 @@
 #define ISCOMM(ch) ((ch) == 0x2c)
 #define ISCOLON(ch) ((ch) == 0x3a)
 #define ISSEMICOLON(ch) ((ch) == 0x3b)
+#define ISQUESTIONSIGN(ch) ((ch) == 0x3f)
 
 #define ISEQUSIGN(ch) ((ch) == 0x3d)
 #define ISPLUSSIGN(ch) ((ch) == 0x2b)
