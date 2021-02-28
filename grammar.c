@@ -36,7 +36,18 @@ g_expression(Token *tokens, size_t toksize)
 	i = 0;
 
 	/* temporarily, expression can be a number only; TODO */
-	g_expecttype(tokens[i++], TokenNumber);
+	if (tokens[i].type == TokenNumber) { /* number literal */
+		++i;
+	} else if (tokens[i].type == TokenString) { /* string literal */
+		++i;
+	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
+		++i;
+	} else if (tokens[i].type == TokenOpeningParenthesis) { /* (expression) */
+		i += g_expression(tokens + i, toksize - i);
+		g_expecttype(tokens[i++], TokenClosingParenthesis);
+	} else { /* expressions that starts with another expressions; TODO */
+		i += g_expression(tokens + i, toksize - i);
+	}
 
 	return i;
 }
@@ -72,7 +83,7 @@ g_statement(Token *tokens, size_t toksize)
 			do {
 				++i;
 				g_expecttype(tokens[i++], TokenIdentifier);
-				if (tokens[i].type == TokenEqualSign) {
+				if (tokens[i].type == TokenAssignmentSign) {
 					++i;
 					i += g_expression(tokens + i, toksize - i);
 				}
@@ -82,7 +93,7 @@ g_statement(Token *tokens, size_t toksize)
 			do {
 				++i;
 				g_expecttype(tokens[i++], TokenIdentifier);
-				if (tokens[i].type == TokenEqualSign) {
+				if (tokens[i].type == TokenAssignmentSign) {
 					++i;
 					i += g_expression(tokens + i, toksize - i);
 				}

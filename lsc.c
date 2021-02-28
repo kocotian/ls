@@ -18,28 +18,7 @@
 
 #define BUFSIZ 8192
 
-#define ISLOW(ch) ((ch) > 0x60 && (ch) < 0x7b)
-#define ISUPP(ch) ((ch) > 0x40 && (ch) < 0x5b)
-#define ISNUM(ch) ((ch) > 0x2f && (ch) < 0x3a)
-#define ISUND(ch) ((ch) == 0x5f)
-#define ISOPPAR(ch) ((ch) == 0x28)
-#define ISOPBRK(ch) ((ch) == 0x5b)
-#define ISOPBRC(ch) ((ch) == 0x7b)
-#define ISCLPAR(ch) ((ch) == 0x29)
-#define ISCLBRK(ch) ((ch) == 0x5d)
-#define ISCLBRC(ch) ((ch) == 0x7d)
-#define ISQUOT(ch) ((ch) == 0x22)
-#define ISCOMM(ch) ((ch) == 0x2c)
-#define ISEQUSIGN(ch) ((ch) == 0x3d)
-#define ISSEMICOLON(ch) ((ch) == 0x3b)
-
-#define ISIGNORABLE(ch) ((ch) > 0x00 && (ch) < 0x21)
-#define ISLINECOMMSTARTCHAR(ch) ((ch) == 0x23)
-
-#define ISIDENSTARTCHAR(ch) (ISUND(ch) || ISLOW(ch) || ISUPP(ch))
-#define ISIDENCHAR(ch) (ISIDENSTARTCHAR(ch) || ISNUM(ch))
-#define ISNUMCHAR(ch) (ISNUM(ch) || ((ch) > 0x60 && (ch) < 0x67) || \
-		((ch) > 0x40 && (ch) < 0x47))
+#include "tokenmacros.h"
 
 #include "lsc.h"
 #include "grammar.h"
@@ -87,14 +66,98 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 				type = TokenIdentifier;
 			else if (ISQUOT(ch))
 				type = TokenString;
-			else if (ISLINECOMMSTARTCHAR(ch)) {
+			else if (ISEQUSIGN(ch)) { /* TODO: make this less bloated */
+				type = TokenAssignmentSign;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISEQUSIGN(input[i + 1])) { /* == */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenLogicalEquSign;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenAssignmentSign;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISPLUSSIGN(ch)) {
+				type = TokenPlusSign;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISEQUSIGN(input[i + 1])) { /* += */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenPlusEqualSign;
+				} else if (ISPLUSSIGN(input[i + 1])) { /* ++ */
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenIncrement;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenPlusSign;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISMINUSSIGN(ch)) {
+				type = TokenMinusSign;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISEQUSIGN(input[i + 1])) { /* -= */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenMinusEqualSign;
+				} else if (ISMINUSSIGN(input[i + 1])) { /* -- */
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenDecrement;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenMinusSign;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISORSIGN(ch)) {
+				type = TokenOrSign;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISORSIGN(input[i + 1])) { /* || */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenLogicalOrSign;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenOrSign;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISANDSIGN(ch)) {
+				type = TokenOrSign;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISANDSIGN(input[i + 1])) { /* && */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenLogicalAndSign;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenAndSign;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISEXCLAMATIONSIGN(ch)) {
+				type = TokenExclamationMark;
+				(*tokens)[*tokiter].off = valstart;
+				if (ISEQUSIGN(input[i + 1])) { /* != */
+					++i;
+					(*tokens)[*tokiter].len = ++j + 1;
+					(*tokens)[(*tokiter)++].type = TokenLogicalNotEquSign;
+				} else {
+					(*tokens)[*tokiter].len = j + 1;
+					(*tokens)[(*tokiter)++].type = TokenExclamationMark;
+				}
+				type = TokenNull;
+				j = -1;
+			} else if (ISLINECOMMSTARTCHAR(ch)) {
 				break;
 			} else if (ISIGNORABLE(ch)) {
 				--j;
 				continue;
 			} else if (ISOPPAR(ch) || ISOPBRK(ch) || ISOPBRC(ch)
 					|| ISCLPAR(ch) || ISCLBRK(ch) || ISCLBRC(ch)
-					|| ISCOMM(ch) || ISSEMICOLON(ch) || ISEQUSIGN(ch)) {
+					|| ISCOMM(ch) || ISSEMICOLON(ch)) {
 				(*tokens)[*tokiter].off = valstart;
 				(*tokens)[*tokiter].len = j + 1;
 				(*tokens)[(*tokiter)++].type =
@@ -105,8 +168,7 @@ parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, 
 					ISCLBRK(ch) ? TokenClosingBracket :
 					ISCLBRC(ch) ? TokenClosingBrace :
 					ISCOMM(ch) ? TokenComma :
-					ISSEMICOLON(ch) ? TokenSemicolon :
-					TokenEqualSign;
+					TokenSemicolon;
 				type = TokenNull;
 				j = -1;
 			} else

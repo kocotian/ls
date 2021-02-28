@@ -1,0 +1,30 @@
+#define ISLOW(ch) ((ch) > 0x60 && (ch) < 0x7b)
+#define ISUPP(ch) ((ch) > 0x40 && (ch) < 0x5b)
+#define ISNUM(ch) ((ch) > 0x2f && (ch) < 0x3a)
+#define ISUND(ch) ((ch) == 0x5f)
+#define ISOPPAR(ch) ((ch) == 0x28)
+#define ISOPBRK(ch) ((ch) == 0x5b)
+#define ISOPBRC(ch) ((ch) == 0x7b)
+#define ISCLPAR(ch) ((ch) == 0x29)
+#define ISCLBRK(ch) ((ch) == 0x5d)
+#define ISCLBRC(ch) ((ch) == 0x7d)
+#define ISQUOT(ch) ((ch) == 0x22)
+#define ISCOMM(ch) ((ch) == 0x2c)
+#define ISCOLON(ch) ((ch) == 0x3a)
+#define ISSEMICOLON(ch) ((ch) == 0x3b)
+
+#define ISEQUSIGN(ch) ((ch) == 0x3d)
+#define ISPLUSSIGN(ch) ((ch) == 0x2b)
+#define ISMINUSSIGN(ch) ((ch) == 0x2d)
+
+#define ISORSIGN(ch) ((ch) == 0x7c)
+#define ISANDSIGN(ch) ((ch) == 0x26)
+#define ISEXCLAMATIONSIGN(ch) ((ch) == 0x21)
+
+#define ISIGNORABLE(ch) ((ch) > 0x00 && (ch) < 0x21)
+#define ISLINECOMMSTARTCHAR(ch) ((ch) == 0x23)
+
+#define ISIDENSTARTCHAR(ch) (ISUND(ch) || ISLOW(ch) || ISUPP(ch))
+#define ISIDENCHAR(ch) (ISIDENSTARTCHAR(ch) || ISNUM(ch))
+#define ISNUMCHAR(ch) (ISNUM(ch) || ((ch) > 0x60 && (ch) < 0x67) || \
+		((ch) > 0x40 && (ch) < 0x47))

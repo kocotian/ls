@@ -10,10 +10,6 @@ TokenIdentifier
 TokenString
 TokenKeyword
 
-# "punctuation"
-TokenComma
-TokenSemicolon
-
 # any brackets
 TokenOpeningParenthesis
 TokenOpeningBracket
@@ -22,5 +18,29 @@ TokenClosingParenthesis
 TokenClosingBracket
 TokenClosingBrace
 
-# operators
-TokenEqualSign
+# "punctuation"
+TokenComma
+TokenSemicolon
+TokenColon
+
+# binary operators
+TokenAssignmentSign
+TokenLogicalEquSign
+
+TokenPlusSign
+TokenPlusEqualSign
+TokenIncrement
+
+TokenMinusSign
+TokenMinusEqualSign
+TokenDecrement
+
+TokenOrSign
+TokenLogicalOrSign
+TokenAndSign
+TokenLogicalAndSign
+
+TokenExclamationMark
+TokenLogicalNotEquSign
+
+TokenQuestionMark
