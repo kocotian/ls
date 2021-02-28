@@ -15,11 +15,7 @@ typedef struct {
 
 #include "util.h"
 
-static int
+int
 getsyscallbyname(char *name);
-static ssize_t
-parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, size_t *tokiter);
-static void
-usage(void);
 
 #endif

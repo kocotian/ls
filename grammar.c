@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "grammar.h"
+#include "lsc.h"
 
 extern char    *contents;
 extern char    *output;
@@ -57,7 +58,7 @@ g_expression(Token *tokens, size_t toksize)
 					"section .rodata\n"
 					"\t.STR%d: db %s, 0\n"
 					"section .text\n"
-					"\tmov rsi, .STR%d\n",
+					"\tmov rax, .STR%d\n",
 					sciter, val, sciter));
 		strncat(output, buffer, outsiz);
 		free(val);
@@ -99,11 +100,39 @@ g_expression(Token *tokens, size_t toksize)
 			i += g_expression(tokens + i, toksize - i);
 			g_expecttype(tokens[i++], TokenClosingBracket);
 		} else if (tokens[i].type == TokenOpeningParenthesis) { /* function(expr) */
+			char *pfnname = malloc(tokens[i - 1].len + 1);
+			int syscallrax;
+			int ai = -1; /* arg iterator */
+
+			strncpy(pfnname, contents + tokens[i - 1].off,
+					tokens[i - 1].len);
+			pfnname[tokens[i - 1].len] = '\0';
+			if ((syscallrax = getsyscallbyname(pfnname)) < 0)
+				/* temporarily warn about undefined function; TODO */
+				errwarn("undefined function: %s", 1,
+						tokens[i - 1], pfnname);
+			free(pfnname);
+
 			do {
-				++i;
+				++ai; ++i;
 				i += g_expression(tokens + i, toksize - i);
+				val = malloc(tokens[i].len + 1);
+				strncpy(val, contents + tokens[i].off, tokens[i].len);
+				val[tokens[i].len] = '\0';
+				output = realloc(output, outsiz +=
+						snprintf(buffer, BUFSIZ, "\tmov %s, rax\n",
+							ai == 0 ? "rdi" : ai == 1 ? "rsi" :
+							ai == 2 ? "rdx" : ai == 3 ? "r10" :
+							ai == 4 ? "r8" : ai == 5 ? "r9" : "rax"));
+				strncat(output, buffer, outsiz);
+				free(val);
 			} while (tokens[i].type == TokenComma);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
+			output = realloc(output, outsiz +=
+					snprintf(buffer, BUFSIZ,
+						"\tmov rax, %d\n\tsyscall\n",
+						syscallrax));
+			strncat(output, buffer, outsiz);
 		} else {
 			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
 				++i;
@@ -123,8 +152,8 @@ g_expression(Token *tokens, size_t toksize)
 				++i;
 			} else if (tokens[i].type == TokenLogicalNotEquSign) { /* expr != expr */
 				++i;
-			} else if (tokens[i].type == TokenComma) { /* expr, expr */
-				++i;
+			/* } else if (tokens[i].type == TokenComma) { /1* expr, expr *1/ */
+			/* 	++i; */
 			} else {
 				return i;
 			}
@@ -219,14 +248,15 @@ g_function(Token *tokens, size_t toksize)
 	} while (tokens[i].type == TokenComma);
 	g_expecttype(tokens[i++], TokenClosingParenthesis);
 
-	rb = snprintf(buffer, BUFSIZ, "%s:\n", func_name);
+	rb = snprintf(buffer, BUFSIZ, "\n%s:\n\tpush rbp\n",
+			func_name);
 	output = realloc(output, outsiz += rb);
 	strcat(output, buffer);
 	free(func_name);
 
 	i += g_statement(tokens + i, toksize - i);
 
-	rb = snprintf(buffer, BUFSIZ, "\tret\n");
+	rb = snprintf(buffer, BUFSIZ, "\tpop rbp\n\tret\n");
 	output = realloc(output, outsiz += rb);
 	strcat(output, buffer);
 

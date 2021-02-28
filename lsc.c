@@ -23,6 +23,9 @@
 #include "lsc.h"
 #include "grammar.h"
 
+static ssize_t parseline(char *input, size_t ilen, size_t off, Token **tokens, size_t *toksiz, size_t *tokiter);
+static void usage(void);
+
 char *argv0;
 
 char *filename, *line;
@@ -34,7 +37,7 @@ size_t outsiz;
 
 int sciter; /* string const iter */
 
-static int
+int
 getsyscallbyname(char *name)
 {
 	size_t i;
