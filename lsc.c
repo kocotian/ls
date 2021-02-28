@@ -32,6 +32,8 @@ char *contents;
 char *output;
 size_t outsiz;
 
+int sciter; /* string const iter */
+
 static int
 getsyscallbyname(char *name)
 {
@@ -219,8 +221,6 @@ main(int argc, char *argv[])
 	int lindex;
 	Token *tokens;
 
-	/* void *data, *bss, *text; */
-
 	ARGBEGIN {
 	default:
 		usage();
@@ -230,6 +230,7 @@ main(int argc, char *argv[])
 	tokens = malloc(sizeof(*tokens) * (toksiz = 128));
 
 	filename = "<stdin>";
+	sciter = 0;
 
 	for (rb = lindex = tokiter = 0; (rb = nextline(0, buffer, BUFSIZ)) > 0; ++lindex) {
 		contents = realloc(contents, csiz += rb);

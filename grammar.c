@@ -2,6 +2,7 @@
    and LICENSE file for license details. */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "grammar.h"
@@ -9,6 +10,7 @@
 extern char    *contents;
 extern char    *output;
 extern size_t   outsiz;
+extern int      sciter;
 
 static char *
 g_typetostr(TokenType type)
@@ -33,11 +35,32 @@ size_t
 g_expression(Token *tokens, size_t toksize)
 {
 	size_t i;
+	char buffer[BUFSIZ], *val;
 	i = 0;
 
 	if (tokens[i].type == TokenNumber) { /* number literal */
+		val = malloc(tokens[i].len + 1);
+		strncpy(val, contents + tokens[i].off, tokens[i].len);
+		val[tokens[i].len] = '\0';
+		output = realloc(output, outsiz +=
+				snprintf(buffer, BUFSIZ, "\tmov rax, %s\n",
+					val));
+		strncat(output, buffer, outsiz);
+		free(val);
 		++i;
 	} else if (tokens[i].type == TokenString) { /* string literal */
+		val = malloc(tokens[i].len + 1);
+		strncpy(val, contents + tokens[i].off, tokens[i].len);
+		val[tokens[i].len] = '\0';
+		output = realloc(output, outsiz +=
+				snprintf(buffer, BUFSIZ,
+					"section .rodata\n"
+					"\t.STR%d: db %s, 0\n"
+					"section .text\n"
+					"\tmov rsi, .STR%d\n",
+					sciter, val, sciter));
+		strncat(output, buffer, outsiz);
+		free(val);
 		++i;
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
 		++i;
