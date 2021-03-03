@@ -49,7 +49,7 @@ g_expression(Token *tokens, size_t toksize)
 		val = malloc(tokens[i].len + 1);
 		strncpy(val, contents + tokens[i].off, tokens[i].len);
 		val[tokens[i].len] = '\0';
-		ASMCONCAT("\tmov rax, %s\n", val);
+		ASMCONCAT("\tmov rax, %s\n", val)
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenString) { /* string literal */
@@ -107,9 +107,9 @@ g_expression(Token *tokens, size_t toksize)
 			strncpy(pfnname, contents + tokens[i - 1].off,
 					tokens[i - 1].len);
 			pfnname[tokens[i - 1].len] = '\0';
-			syscallrax = getsyscallbyname(pfnname);
+			if ((syscallrax = getsyscallbyname(pfnname)) < 0)
+				ASMCONCAT("\tpush rax\n")
 			free(pfnname);
-			ASMCONCAT("\tpush rax\n");
 
 			do {
 				++ai; ++i;
@@ -124,25 +124,23 @@ g_expression(Token *tokens, size_t toksize)
 				free(val);
 			} while (tokens[i].type == TokenComma);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
-			ASMCONCAT("\tpop rax\n");
-			if (syscallrax < 0) {
-				ASMCONCAT("\tcall rax\n");
-			} else {
-				ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax);
-			}
+			if (syscallrax < 0)
+				ASMCONCAT("\tpop rax\n\tcall rax\n")
+			else
+				ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax)
 		} else {
 			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
 				++i;
 			} else if (tokens[i].type == TokenPlusSign) { /* expr + expr */
-				ASMCONCAT("\tpush rax\n");
+				ASMCONCAT("\tpush rax\n")
 				++i;
 				i += g_expression(tokens + i, toksize - i);
-				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tadd rax, rbx\n");
+				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tadd rax, rbx\n")
 			} else if (tokens[i].type == TokenMinusSign) { /* expr - expr */
-				ASMCONCAT("\tpush rax\n");
+				ASMCONCAT("\tpush rax\n")
 				++i;
 				i += g_expression(tokens + i, toksize - i);
-				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tsub rax, rbx\n");
+				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tsub rax, rbx\n")
 			} else if (tokens[i].type == TokenPlusEqualSign) { /* expr += expr */
 				++i;
 			} else if (tokens[i].type == TokenMinusEqualSign) { /* expr -= expr */
