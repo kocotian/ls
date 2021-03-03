@@ -64,12 +64,12 @@ g_expression(Token *tokens, size_t toksize)
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
-		char *pfnname = malloc(tokens[i - 1].len + 1);
+		char *pfnname = malloc(tokens[i].len + 1);
 		int syscallrax = -1;
 
-		strncpy(pfnname, contents + tokens[i - 1].off,
-				tokens[i - 1].len);
-		pfnname[tokens[i - 1].len] = '\0';
+		strncpy(pfnname, contents + tokens[i].off,
+				tokens[i].len);
+		pfnname[tokens[i].len] = '\0';
 
 		if ((syscallrax = getsyscallbyname(pfnname)) < 0) {
 			val = malloc(tokens[i].len + 1);
@@ -183,7 +183,9 @@ size_t
 g_statement(Token *tokens, size_t toksize)
 {
 	size_t i;
+	char buffer[BUFSIZ], *val;
 	i = 0;
+
 	if (tokens[i].type == TokenOpeningBrace) { /* compound */
 		++i;
 		while (tokens[i].type != TokenClosingBrace && i < toksize) {
@@ -206,6 +208,7 @@ g_statement(Token *tokens, size_t toksize)
 			++i;
 			i += g_expression(tokens + i, toksize - i);
 			g_expecttype(tokens[i], TokenSemicolon);
+			ASMCONCAT("\tpop rbp\n\tret\n")
 		} else if (!strncmp(contents + tokens[i].off, "var",    3)) { /* variable */
 			do {
 				++i;
@@ -275,7 +278,7 @@ g_function(Token *tokens, size_t toksize)
 	output = realloc(output, outsiz += rb);
 	strcat(output, buffer);
 
-	return i;
+	return ++i;
 }
 
 size_t
