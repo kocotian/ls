@@ -64,6 +64,20 @@ g_expression(Token *tokens, size_t toksize)
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
+		char *pfnname = malloc(tokens[i - 1].len + 1);
+		int syscallrax = -1;
+
+		strncpy(pfnname, contents + tokens[i - 1].off,
+				tokens[i - 1].len);
+		pfnname[tokens[i - 1].len] = '\0';
+
+		if ((syscallrax = getsyscallbyname(pfnname)) < 0) {
+			val = malloc(tokens[i].len + 1);
+			strncpy(val, contents + tokens[i].off, tokens[i].len);
+			val[tokens[i].len] = '\0';
+			ASMCONCAT("\tmov rax, %s\n", val);
+			free(val);
+		}
 		++i;
 	} else if (tokens[i].type == TokenOpeningParenthesis) { /* (expression) */
 		++i;
@@ -261,16 +275,15 @@ g_function(Token *tokens, size_t toksize)
 	output = realloc(output, outsiz += rb);
 	strcat(output, buffer);
 
-	return ++i;
+	return i;
 }
 
 size_t
 g_main(Token *tokens, size_t toksize)
 {
-	size_t i;
-	for (i = 0; i < toksize; ++i) {
+	size_t i = 0;
+	while (i < toksize)
 		i += g_function(tokens + i, toksize - i);
-	}
 
 	return i;
 }
