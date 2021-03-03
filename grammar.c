@@ -8,10 +8,11 @@
 #include "grammar.h"
 #include "lsc.h"
 
-#define ASMCONCAT(...) \
+#define ASMCONCAT(...) { \
 	output = realloc(output, outsiz += \
 			snprintf(buffer, BUFSIZ, __VA_ARGS__)); \
-	strncat(output, buffer, outsiz);
+	strncat(output, buffer, outsiz); \
+}
 
 extern char    *contents;
 extern char    *output;
@@ -100,17 +101,15 @@ g_expression(Token *tokens, size_t toksize)
 			g_expecttype(tokens[i++], TokenClosingBracket);
 		} else if (tokens[i].type == TokenOpeningParenthesis) { /* function(expr) */
 			char *pfnname = malloc(tokens[i - 1].len + 1);
-			int syscallrax;
+			int syscallrax = -1;
 			int ai = -1; /* arg iterator */
 
 			strncpy(pfnname, contents + tokens[i - 1].off,
 					tokens[i - 1].len);
 			pfnname[tokens[i - 1].len] = '\0';
-			if ((syscallrax = getsyscallbyname(pfnname)) < 0)
-				/* temporarily warn about undefined function; TODO */
-				errwarn("undefined function: %s", 1,
-						tokens[i - 1], pfnname);
+			syscallrax = getsyscallbyname(pfnname);
 			free(pfnname);
+			ASMCONCAT("\tpush rax\n");
 
 			do {
 				++ai; ++i;
@@ -125,7 +124,12 @@ g_expression(Token *tokens, size_t toksize)
 				free(val);
 			} while (tokens[i].type == TokenComma);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
-			ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax);
+			ASMCONCAT("\tpop rax\n");
+			if (syscallrax < 0) {
+				ASMCONCAT("\tcall rax\n");
+			} else {
+				ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax);
+			}
 		} else {
 			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
 				++i;
