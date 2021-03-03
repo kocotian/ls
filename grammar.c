@@ -8,6 +8,11 @@
 #include "grammar.h"
 #include "lsc.h"
 
+#define ASMCONCAT(...) \
+	output = realloc(output, outsiz += \
+			snprintf(buffer, BUFSIZ, __VA_ARGS__)); \
+	strncat(output, buffer, outsiz);
+
 extern char    *contents;
 extern char    *output;
 extern size_t   outsiz;
@@ -43,24 +48,18 @@ g_expression(Token *tokens, size_t toksize)
 		val = malloc(tokens[i].len + 1);
 		strncpy(val, contents + tokens[i].off, tokens[i].len);
 		val[tokens[i].len] = '\0';
-		output = realloc(output, outsiz +=
-				snprintf(buffer, BUFSIZ, "\tmov rax, %s\n",
-					val));
-		strncat(output, buffer, outsiz);
+		ASMCONCAT("\tmov rax, %s\n", val);
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenString) { /* string literal */
 		val = malloc(tokens[i].len + 1);
 		strncpy(val, contents + tokens[i].off, tokens[i].len);
 		val[tokens[i].len] = '\0';
-		output = realloc(output, outsiz +=
-				snprintf(buffer, BUFSIZ,
-					"section .rodata\n"
-					"\t.STR%d: db %s, 0\n"
-					"section .text\n"
-					"\tmov rax, .STR%d\n",
-					sciter, val, sciter));
-		strncat(output, buffer, outsiz);
+		ASMCONCAT("section .rodata\n"
+			"\t.STR%d: db %s, 0\n"
+			"section .text\n"
+			"\tmov rax, .STR%d\n",
+			sciter, val, sciter);
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
@@ -119,27 +118,27 @@ g_expression(Token *tokens, size_t toksize)
 				val = malloc(tokens[i].len + 1);
 				strncpy(val, contents + tokens[i].off, tokens[i].len);
 				val[tokens[i].len] = '\0';
-				output = realloc(output, outsiz +=
-						snprintf(buffer, BUFSIZ, "\tmov %s, rax\n",
-							ai == 0 ? "rdi" : ai == 1 ? "rsi" :
-							ai == 2 ? "rdx" : ai == 3 ? "r10" :
-							ai == 4 ? "r8" : ai == 5 ? "r9" : "rax"));
-				strncat(output, buffer, outsiz);
+				ASMCONCAT("\tmov %s, rax\n",
+					ai == 0 ? "rdi" : ai == 1 ? "rsi" :
+					ai == 2 ? "rdx" : ai == 3 ? "r10" :
+					ai == 4 ? "r8" : ai == 5 ? "r9" : "rax");
 				free(val);
 			} while (tokens[i].type == TokenComma);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
-			output = realloc(output, outsiz +=
-					snprintf(buffer, BUFSIZ,
-						"\tmov rax, %d\n\tsyscall\n",
-						syscallrax));
-			strncat(output, buffer, outsiz);
+			ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax);
 		} else {
 			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
 				++i;
 			} else if (tokens[i].type == TokenPlusSign) { /* expr + expr */
+				ASMCONCAT("\tpush rax\n");
 				++i;
+				i += g_expression(tokens + i, toksize - i);
+				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tadd rax, rbx\n");
 			} else if (tokens[i].type == TokenMinusSign) { /* expr - expr */
+				ASMCONCAT("\tpush rax\n");
 				++i;
+				i += g_expression(tokens + i, toksize - i);
+				ASMCONCAT("\tmov rbx, rax\n\tpop rax\n\tsub rax, rbx\n");
 			} else if (tokens[i].type == TokenPlusEqualSign) { /* expr += expr */
 				++i;
 			} else if (tokens[i].type == TokenMinusEqualSign) { /* expr -= expr */
@@ -181,7 +180,7 @@ g_statement(Token *tokens, size_t toksize)
 			i += g_expression(tokens + i, toksize - i);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
 			i += g_statement(tokens + i, toksize - i);
-		} else if (!strncmp(contents + tokens[i].off, "while",  5)) { /* loop */
+		} else if (!strncmp(contents + tokens[i].off, "while",  5)) { /* while loop */
 			g_expecttype(tokens[++i], TokenOpeningParenthesis);
 			++i;
 			i += g_expression(tokens + i, toksize - i);

@@ -70,6 +70,16 @@ strchlen(const char *s, char c)
 	return p - s;
 }
 
+ssize_t
+strlchlen(const char *s, char c)
+{
+	char *p;
+	if ((p = strchr(s, c)) == NULL)
+		return strlen(s);
+	while ((p = strchr(p, c) != NULL))
+	return p - s;
+}
+
 void
 errwarn(const char *fmt, int iserror, Token token, ...)
 {
