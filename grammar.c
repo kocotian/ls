@@ -61,6 +61,7 @@ g_expression(Token *tokens, size_t toksize)
 			"section .text\n"
 			"\tmov rax, .STR%d\n",
 			sciter, val, sciter);
+		++sciter;
 		free(val);
 		++i;
 	} else if (tokens[i].type == TokenIdentifier) { /* identifier literal */
@@ -122,7 +123,7 @@ g_expression(Token *tokens, size_t toksize)
 					tokens[i - 1].len);
 			pfnname[tokens[i - 1].len] = '\0';
 			if ((syscallrax = getsyscallbyname(pfnname)) < 0)
-				ASMCONCAT("\tpush rax\n")
+				ASMCONCAT("\tmov r15, rax\n")
 			free(pfnname);
 
 			do {
@@ -131,7 +132,10 @@ g_expression(Token *tokens, size_t toksize)
 				val = malloc(tokens[i].len + 1);
 				strncpy(val, contents + tokens[i].off, tokens[i].len);
 				val[tokens[i].len] = '\0';
-				ASMCONCAT("\tmov %s, rax\n",
+				ASMCONCAT("\tpush %s\n\tmov %s, rax\n",
+					ai == 0 ? "rdi" : ai == 1 ? "rsi" :
+					ai == 2 ? "rdx" : ai == 3 ? "r10" :
+					ai == 4 ? "r8" : ai == 5 ? "r9" : "rax",
 					ai == 0 ? "rdi" : ai == 1 ? "rsi" :
 					ai == 2 ? "rdx" : ai == 3 ? "r10" :
 					ai == 4 ? "r8" : ai == 5 ? "r9" : "rax");
@@ -139,9 +143,16 @@ g_expression(Token *tokens, size_t toksize)
 			} while (tokens[i].type == TokenComma);
 			g_expecttype(tokens[i++], TokenClosingParenthesis);
 			if (syscallrax < 0)
-				ASMCONCAT("\tpop rax\n\tcall rax\n")
+				ASMCONCAT("\tmov rax, r15\n\tcall rax\n")
 			else
 				ASMCONCAT("\tmov rax, %d\n\tsyscall\n", syscallrax)
+			while (ai >= 0) {
+				ASMCONCAT("\tpop %s\n",
+					ai == 0 ? "rdi" : ai == 1 ? "rsi" :
+					ai == 2 ? "rdx" : ai == 3 ? "r10" :
+					ai == 4 ? "r8" : ai == 5 ? "r9" : "rax");
+				--ai;
+			};
 		} else {
 			if (tokens[i].type == TokenAssignmentSign) { /* expr = expr */
 				++i;
