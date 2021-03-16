@@ -87,6 +87,7 @@ g_expression(Token *tokens, size_t toksize)
 	} else if (tokens[i].type == TokenMinusSign) { /* -sign-change */
 		++i;
 		i += g_expression(tokens + i, toksize - i);
+		ASMCONCAT("\tneg rax\n");
 	} else if (tokens[i].type == TokenExclamationMark) { /* !negation */
 		++i;
 		i += g_expression(tokens + i, toksize - i);
